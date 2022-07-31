@@ -60,4 +60,7 @@ scraped_data <- seq(from=0, to=5) %>%
   map_df(scrape_data) %>%
   # Drop any titles that are missing and are duplicated
   drop_na(titles) 
+
+
+write.csv(scraped_data, "metacritic_psp_game_reviews.csv")
 ```
