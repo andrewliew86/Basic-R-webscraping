@@ -1,0 +1,69 @@
+---
+title: "Basic webscraping workflow"
+author: "Andrew"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(rvest)
+library(tidyverse)
+```
+
+```{r}
+# Function used to extract text data from the list of elements from rvest html 'supernode'. Need to provide a tag that will be extracted from supernode. Tip: Use css selector gadget to identify the tag for the supernode.
+html_extractor <- function(super_node_read, tag) {
+    map_chr(super_node_read, ~html_node(., tag) %>%
+    html_text() %>%
+    # This if statement returns NA if the node does not have the element of interest e.g. no urls
+    {if(length(.) == 0) NA else .}) %>%
+    # Remove any whitespace associated with the text
+    trimws(which = "both", whitespace = "[ \t\r\n→]")
+}
+
+# THis functions loops through the different pages of the website that you intend to scrape and calls the html_extractor for each data type for scraping. Tags were identified using css selector gadget
+scrape_data <- function(i){
+  # Start by reading a HTML page with read_html():
+  pub_html <- read_html(paste0("https://www.amazon.com.au/s?k=PSP+Games&i=videogames&rh=n%3A5250944051&page=",i,"&c=ts&qid=1659180521&ts_id=5250944051&ref=sr_pg_178"))
+  
+  # read as vector of all blocks of supernode (imp: use html_nodes function)
+  super_node_read <- html_nodes(pub_html, ".s-list-col-right .sg-col-inner")
+
+  # Extract titles, publishers, and other metadata from the supernode using the html_extractor function
+  titles <- html_extractor(super_node_read, ".a-size-medium")
+  
+  publishers <-  html_extractor(super_node_read, ".s-title-instructions-style .a-row span")
+  
+  rating <- html_extractor(super_node_read, ".aok-align-bottom")
+  
+  num_of_ratings <- html_extractor(super_node_read, ".s-link-style .s-underline-text")
+  
+  price <- html_extractor(super_node_read, ".s-price-instructions-style .a-text-normal")
+ 
+  
+  # Bind everything into a tibble
+  data_concat <- tibble(titles, publishers, rating, num_of_ratings, price)
+  
+   # Sleep for 0.5 second to avoid overloading the website
+  Sys.sleep(0.5)
+  
+  # print out progress
+  print(paste("Page", i, "scraped") )
+  
+  # return tibble
+  data_concat
+}
+```
+
+# Run scraping function here
+```{r}
+scraped_data <- seq(1:115) %>%
+  map_df(scrape_data) %>%
+  # Drop any titles that are missing and are duplicated
+  drop_na(titles) %>%
+  distinct(titles, .keep_all = TRUE)
+
+```
+
+
+
